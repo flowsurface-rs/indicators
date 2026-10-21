@@ -1,47 +1,61 @@
 name: Validate indicators
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_dispatch:
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: flowsurface
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: catalog
-          persist-credentials: false
+    validate:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: flowsurface
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: catalog
+                  persist-credentials: false
 
-      - name: Check out compatible indicator engine
-        uses: actions/checkout@v4
-        with:
-          repository: flowsurface-rs/flowsurface
-          ref: 0a0416bcae8c34836fc8b59985fd82cebffedbe8
-          path: flowsurface
-          persist-credentials: false
+            - name: Check out compatible indicator engine
+              uses: actions/checkout@v4
+              with:
+                  repository: flowsurface-rs/flowsurface
+                  ref: 4e3b93fef8a49b060260e540740e2e97fa526021
+                  path: flowsurface
+                  persist-credentials: false
 
-      - name: Read engine toolchain
-        id: toolchain
-        run: |
-          channel="$(sed -nE 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"([^"]+)"[[:space:]]*$/\1/p' rust-toolchain.toml)"
-          test -n "$channel"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+            - name: Read engine toolchain
+              id: toolchain
+              run: |
+                  channel="$(sed -nE 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"([^"]+)"[[:space:]]*$/\1/p' rust-toolchain.toml)"
+                  test -n "$channel"
+                  echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
-      - uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: ${{ steps.toolchain.outputs.channel }}
+            - uses: dtolnay/rust-toolchain@v1
+              with:
+                  toolchain: ${{ steps.toolchain.outputs.channel }}
 
-      - name: Check indicator sources
-        run: cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- check "$GITHUB_WORKSPACE/catalog/sources" --namespace catalog
+            - name: Check indicator sources
+              run: cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- check "$GITHUB_WORKSPACE/catalog/sources" --namespace catalog
 
-      - name: Smoke-test indicator sources
-        run: cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- test "$GITHUB_WORKSPACE/catalog/sources" --namespace catalog
+            - name: Smoke-test indicator sources
+              run: cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- test "$GITHUB_WORKSPACE/catalog/sources" --namespace catalog
+
+            - name: Generate catalog bundle
+              run: |
+                  mkdir "$GITHUB_WORKSPACE/catalog/dist"
+                  cp -R "$GITHUB_WORKSPACE/catalog/sources/." "$GITHUB_WORKSPACE/catalog/dist/"
+                  cp "$GITHUB_WORKSPACE/catalog/LICENSE" "$GITHUB_WORKSPACE/catalog/dist/LICENSE"
+                  cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- catalog "$GITHUB_WORKSPACE/catalog/dist" --output "$GITHUB_WORKSPACE/catalog/dist/catalog.json" --namespace catalog
+
+            - name: Upload catalog bundle
+              uses: actions/upload-artifact@v4
+              with:
+                  name: indicator-catalog
+                  path: catalog/dist/
+                  if-no-files-found: error

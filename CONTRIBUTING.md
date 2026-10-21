@@ -27,6 +27,7 @@ catalog checkout before submitting:
 cd ../flowsurface
 cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- check ../indicators/sources --namespace catalog
 cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- test ../indicators/sources --namespace catalog
+cargo run --locked -p flowsurface-indicator-engine --bin flowsurface-indicator -- catalog ../indicators/sources --output /tmp/catalog.json --namespace catalog
 ```
 
 These commands build only the CLI and its dependencies. They check syntax,
@@ -36,6 +37,9 @@ the formula, other input settings, and chart appearance in the application.
 CI runs both commands automatically for pull requests. If a source needs newer
 engine features, update the pinned application revision and describe the required
 application build in the pull request.
+
+After those checks pass, CI also generates the catalog and uploads the matching
+source bundle as the `indicator-catalog` workflow artifact.
 
 ## Developer Certificate of Origin
 
